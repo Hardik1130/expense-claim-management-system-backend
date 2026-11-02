@@ -1,0 +1,57 @@
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: expense-postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: expense_claim_db
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: expense-backend
+    restart: unless-stopped
+
+    env_file:
+      - .env
+
+    environment:
+      PORT: 8080
+      DB_URL: jdbc:postgresql://postgres:5432/expense_claim_db
+      RECEIPTS_DIRECTORY: /app/uploads/receipts
+
+    ports:
+      - "8080:8080"
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    volumes:
+      - receipts_data:/app/uploads/receipts
+
+
+volumes:
+  postgres_data:
+  receipts_data:
